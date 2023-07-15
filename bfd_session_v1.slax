@@ -1,0 +1,36 @@
+version 1.0;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ns ext = "http://xmlsoft.org/XSLT/namespace";
+
+import "../import/junos.xsl";
+
+
+
+
+
+var $rpc = {
+    <request-shell-execute> {
+        <command> "cprod -A fpc1 -c 'show pfe bfdsession all'";
+    }
+}
+var $result = jcs:invoke($rpc);
+var $anyup = {
+  if( contains( $result, "Session Status : UP" ) ) {
+    expr "at lease one bfd session in PFE is up";
+  }
+}
+var $anydown = {
+  if( contains( $result, "Session Status : DOWN" ) ) {
+    expr "at lease one bfd session in PFE is Down";
+  }
+}
+match / {
+  <event-script-results> {
+    <output> $anyup;
+    <output> $anydown;
+    expr jcs:syslog("pfe.error", $anyup , $anydown);
+  }
+}
