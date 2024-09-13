@@ -1,54 +1,77 @@
+import time
 from jnpr.junos import Device
 from lxml import etree
+import jcs
 
-def main():
-    dev = Device()
-    # Opens a connection
-    dev.open()
+"""
+This script is triggered by an event policy on the Junos device when a BFD session
+transitions to the "up" state. The following configuration is required on the Junos device:
 
-    # Fetch FPC slot information
-    fpc_info = dev.rpc.get_fpc_information()
+set event-options policy bfd-session events BFDD_TRAP_SHOP_STATE_UP
+set event-options policy bfd-session within 60 trigger on
+set event-options policy bfd-session within 60 trigger 1
+set event-options policy bfd-session then event-script bfd-session.py
 
-    # Extract FPC slot numbers where the state is "Online"
-    fpc_slots = []
-    for fpc in fpc_info.xpath("//fpc"):
-        slot = fpc.find("slot").text
-        state = fpc.find("state").text
-        if state == "Online":
-            fpc_slots.append(slot)
+The script checks the status of BFD sessions and generates syslog messages accordingly.
+"""
 
-    # Fetch extensive BFD session information
-    bfd_session_ext = dev.rpc.get_bfd_session_information(extensive=True)
+# Delay the script execution by 10 seconds
+time.sleep(10)
+
+# Open a connection to the device
+dev = Device()
+dev.open()
+
+# Fetch extensive BFD session information
+bfd_session_ext = dev.rpc.get_bfd_session_information(extensive=True)
+
+# Extract "Session ID" and "session-neighbor" values, excluding session_id = '0'
+sessions = []
+for session in bfd_session_ext.xpath("//bfd-session"):
+    session_id_elem = session.xpath(".//no-refresh[contains(text(),'Session ID')]")
+    session_neighbor_elem = session.find(".//session-neighbor")
     
-    # Parse the XML to find all "Session ID" and "session-neighbor" values
-    sessions = []
-    for session in bfd_session_ext.xpath("//bfd-session"):
-        session_id_elem = session.find(".//no-refresh")
-        session_neighbor_elem = session.find(".//session-neighbor")
+    if session_id_elem:
+        session_id = session_id_elem[0].text.split("Session ID: ")[-1].strip()
         
-        if session_id_elem is not None and "Session ID:" in session_id_elem.text:
-            session_id = session_id_elem.text.split("Session ID: ")[-1].strip()
+        # Exclude session_id = '0'
+        if session_id != '0':
             session_neighbor = session_neighbor_elem.text if session_neighbor_elem is not None else "Unknown"
             sessions.append((session_id, session_neighbor))
 
-    # Iterate over each session and each FPC slot
-    for session_id, session_neighbor in sessions:
-        for slot in fpc_slots:
-            target = 'fpc{}'.format(slot)
-            bfd_session_shell = dev.rpc.request_pfe_execute(target=target, command='show pfe bfd id {}'.format(session_id))
-            
-            # Convert the bfd_session_shell element to a string
-            bfd_session_shell_str = etree.tostring(bfd_session_shell, pretty_print=True).decode()
+# Fetch FPC slot information
+fpc_info = dev.rpc.get_fpc_information()
 
-            # Check the content for specific strings and include session-neighbor in the output
-            if "Session Status : DOWN" in bfd_session_shell_str:
-                print("Session ID {} (Neighbor: {}) on {} is down".format(session_id, session_neighbor, target))
-            elif "Session DB doesn't exist" in bfd_session_shell_str:
-                print("Session ID {} (Neighbor: {}) on {} does not exist".format(session_id, session_neighbor, target))
-            else:
-                print("Session ID {} (Neighbor: {}) on {}: unknown status".format(session_id, session_neighbor, target))
+# Extract FPC slot numbers where the state is "Online"
+fpc_slots = []
+for fpc in fpc_info.xpath("//fpc"):
+    slot = fpc.find("slot").text
+    state = fpc.find("state").text
+    if state == "Online":
+        fpc_slots.append(slot)
 
-    dev.close()
+# Iterate over each session and each FPC slot
+for session_id, session_neighbor in sessions:
+    for slot in fpc_slots:
+        target = 'fpc{}'.format(slot)
+        bfd_session_shell = dev.rpc.request_pfe_execute(target=target, command='show pfe bfd id {}'.format(session_id))
+        
+        # Convert the bfd_session_shell element to a string
+        bfd_session_shell_str = etree.tostring(bfd_session_shell, pretty_print=True).decode()
 
-if __name__ == '__main__':
-    main()
+        # Construct the message based on the session status
+        if "Session Status : DOWN" in bfd_session_shell_str:
+            message = "Session ID {} (Neighbor: {}) on {} is down".format(session_id, session_neighbor, target)
+        elif "Session DB doesn't exist" in bfd_session_shell_str:
+            message = "Session ID {} (Neighbor: {}) on {} does not exist".format(session_id, session_neighbor, target)
+        else:
+            message = "Session ID {} (Neighbor: {}) on {} is up".format(session_id, session_neighbor, target)
+        
+        # Print the message
+        print(message)
+        
+        # Generate a syslog with the message
+        jcs.syslog("pfe.warning", message)
+
+# Close the device connection
+dev.close()
