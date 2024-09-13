@@ -15,7 +15,7 @@ set event-options policy bfd-session then event-script bfd-session.py
 The script checks the status of BFD sessions and generates syslog messages accordingly.
 """
 
-# Delay the script execution by 10 seconds
+# Delay the script execution by 10 seconds to wait for flapped bfd session be stablize.
 time.sleep(10)
 
 # Open a connection to the device
