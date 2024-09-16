@@ -1,8 +1,3 @@
-import time
-from jnpr.junos import Device
-from lxml import etree
-import jcs
-
 """
 
 
@@ -38,6 +33,10 @@ event-script {
 
 The script checks the status of BFD sessions and generates syslog messages accordingly.
 """
+import time
+from jnpr.junos import Device
+from lxml import etree
+import jcs
 
 # Delay the script execution by 10 seconds to wait for flapped bfd session be stablize.
 time.sleep(10)
