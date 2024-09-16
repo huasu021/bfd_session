@@ -4,13 +4,37 @@ from lxml import etree
 import jcs
 
 """
+
+
 This script is triggered by an event policy on the Junos device when a BFD session
 transitions to the "up" state. The following configuration is required on the Junos device:
 
-set event-options policy bfd-session events BFDD_TRAP_SHOP_STATE_UP
-set event-options policy bfd-session within 60 trigger on
-set event-options policy bfd-session within 60 trigger 1
-set event-options policy bfd-session then event-script bfd-session.py
+Copy this bfd_session.py into /var/db/scripts/event/
+cli config:
+
+policy bfd-session {
+    events BFDD_TRAP_SHOP_STATE_UP;
+    within 60 {
+        trigger on 1;
+    }
+    then {
+        event-script bfd-session.py;
+    }
+}
+policy bfd-session-trap {
+    events SYSTEM;
+    attributes-match {
+        SYSTEM.message matches "Session ID.*(is down|does not exist)";
+    }
+    then {
+        raise-trap;
+    }
+}
+event-script {
+    file bfd-session.py {
+        python-script-user JNPR-RW;
+    }
+}
 
 The script checks the status of BFD sessions and generates syslog messages accordingly.
 """
