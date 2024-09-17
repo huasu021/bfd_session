@@ -27,29 +27,14 @@ transitions to the "up" state. The following configuration is required on the Ju
 Copy this bfd_session.py into /var/db/scripts/event/
 cli config:
 
-policy bfd-session {
-    events BFDD_TRAP_SHOP_STATE_UP;
-    within 60 {
-        trigger on 1;
-    }
-    then {
-        event-script bfd-session.py;
-    }
-}
-policy bfd-session-trap {
-    events SYSTEM;
-    attributes-match {
-        SYSTEM.message matches "Session ID.*(is down|does not exist)";
-    }
-    then {
-        raise-trap;
-    }
-}
-event-script {
-    file bfd-session.py {
-        python-script-user JNPR-RW;
-    }
-}
+set event-options policy bfd-session events BFDD_TRAP_SHOP_STATE_UP
+set event-options policy bfd-session within 60 trigger on
+set event-options policy bfd-session within 60 trigger 1
+set event-options policy bfd-session then event-script bfd-session.py
+set event-options policy bfd-session-trap events SYSTEM
+set event-options policy bfd-session-trap attributes-match SYSTEM.message matches "Session ID.*(is down|does not exist)"
+set event-options policy bfd-session-trap then raise-trap
+set event-options event-script file bfd-session.py python-script-user JNPR-RW
 set system scripts language python3
 set system scripts synchronize
 
