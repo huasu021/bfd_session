@@ -50,6 +50,8 @@ event-script {
         python-script-user JNPR-RW;
     }
 }
+set system scripts language python3
+set system scripts synchronize
 
 The script checks the status of BFD sessions and generates syslog messages accordingly.
 """
