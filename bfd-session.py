@@ -91,9 +91,9 @@ for session_id, session_neighbor in sessions:
 
         # Construct the message based on the session status
         if "Session Status : DOWN" in bfd_session_shell_str:
-            message = "Session ID {} (Neighbor: {}) on {} is down".format(session_id, session_neighbor, target)
+            message = "Session ID {} (Neighbor: {}) on {} is down,Nera Ticket 20231383 - PR1071028 - Contact Nera".format(session_id, session_neighbor, target)
         elif "Session DB doesn't exist" in bfd_session_shell_str:
-            message = "Session ID {} (Neighbor: {}) on {} does not exist".format(session_id, session_neighbor, target)
+            message = "Session ID {} (Neighbor: {}) on {} does not exist,Nera Ticket 20231383 - PR1071028 - Contact Nera".format(session_id, session_neighbor, target)
         else:
             message = "Session ID {} (Neighbor: {}) on {} is up".format(session_id, session_neighbor, target)
         
