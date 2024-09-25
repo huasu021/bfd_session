@@ -23,7 +23,7 @@
 
 This script is triggered by an event policy on the Junos device when a BFD session
 transitions to the "up" state. The following configuration is required on the Junos device:
-
+This script was tested in Junos 21.2 and 20.4 on MX platform.
 Copy this bfd_session.py into /var/db/scripts/event/
 cli config:
 
